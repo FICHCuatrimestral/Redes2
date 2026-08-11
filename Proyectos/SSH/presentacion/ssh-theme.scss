@@ -1,0 +1,338 @@
+/*-- scss:defaults --*/
+
+// Fuentes
+$font-family-sans-serif: 'Inter', 'Segoe UI', system-ui, sans-serif !default;
+$font-family-monospace: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace !default;
+$presentation-font-size-root: 32px;
+
+// Paleta base
+$body-bg: #0a0e1a;
+$body-color: #e2e8f0;
+$link-color: #60a5fa;
+$selection-bg: #3b82f6;
+
+// Headings
+$presentation-heading-font: 'Inter', 'Segoe UI', system-ui, sans-serif;
+$presentation-heading-color: #f1f5f9;
+$presentation-heading-font-weight: 700;
+$presentation-heading-letter-spacing: -0.02em;
+$presentation-h1-font-size: 2.2em;
+$presentation-h2-font-size: 1.4em;
+$presentation-h3-font-size: 1em;
+
+// Code
+$code-color: #93c5fd;
+$code-bg: #0f172a;
+
+/*-- scss:rules --*/
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+// ── Fondo con gradiente sutil ──────────────────────────────
+.reveal .slides {
+  background: transparent;
+}
+
+.reveal-viewport {
+  background: #0a0e1a;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 20% 0%, rgba(59, 130, 246, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(99, 102, 241, 0.06) 0%, transparent 60%);
+}
+
+// ── Slide base ─────────────────────────────────────────────
+.reveal .slides section {
+  padding: 0 60px;
+  text-align: left;
+}
+
+// ── Slide de título de sección (# Título) ─────────────────
+.reveal .slides section.stack > section:first-child,
+.reveal .title-slide,
+.reveal section[data-background-color] {
+  text-align: center;
+}
+
+// Slides de sección (solo H1)
+.reveal .slides > section > section.present:not(.title-slide),
+.reveal .slides > section.present:not(.title-slide) {
+  h1 {
+    font-size: 2.8em;
+    background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.03em;
+    margin-bottom: 0.2em;
+  }
+}
+
+// ── Título principal ───────────────────────────────────────
+.reveal .title-slide {
+  background-image:
+    radial-gradient(ellipse 70% 60% at 50% 40%, rgba(59, 130, 246, 0.12) 0%, transparent 70%);
+
+  .title {
+    font-size: 2.6em;
+    font-weight: 800;
+    background: linear-gradient(135deg, #f1f5f9 0%, #93c5fd 50%, #a78bfa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+
+  .subtitle {
+    font-size: 1em;
+    font-weight: 500;
+    color: #64748b;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-top: 0.5em;
+  }
+
+  .date {
+    font-size: 0.7em;
+    color: #475569;
+    margin-top: 1.5em;
+  }
+}
+
+// ── Headings de slide (## Título) ─────────────────────────
+.reveal h2 {
+  font-size: 1.35em;
+  font-weight: 700;
+  color: #f1f5f9;
+  letter-spacing: -0.02em;
+  padding-bottom: 0.4em;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+  margin-bottom: 0.8em;
+
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 0.85em;
+    background: linear-gradient(180deg, #60a5fa, #a78bfa);
+    border-radius: 2px;
+    margin-right: 0.4em;
+    vertical-align: middle;
+  }
+}
+
+.reveal h3 {
+  font-size: 0.9em;
+  font-weight: 600;
+  color: #93c5fd;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 1em;
+  margin-bottom: 0.4em;
+}
+
+// ── Texto ──────────────────────────────────────────────────
+.reveal p {
+  font-size: 0.82em;
+  line-height: 1.7;
+  color: #cbd5e1;
+}
+
+.reveal li {
+  font-size: 0.82em;
+  line-height: 1.8;
+  color: #cbd5e1;
+  margin-bottom: 0.15em;
+}
+
+.reveal strong {
+  color: #f1f5f9;
+  font-weight: 600;
+}
+
+.reveal em {
+  color: #93c5fd;
+  font-style: normal;
+}
+
+// ── Blockquote ─────────────────────────────────────────────
+.reveal blockquote {
+  background: rgba(59, 130, 246, 0.08);
+  border-left: 3px solid #3b82f6;
+  border-radius: 0 8px 8px 0;
+  padding: 0.6em 1em;
+  font-size: 0.8em;
+  color: #93c5fd;
+  font-style: normal;
+  margin: 0.8em 0;
+  box-shadow: none;
+  width: auto;
+}
+
+// ── Código inline ──────────────────────────────────────────
+.reveal code:not(pre code) {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82em;
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.1);
+  border: 1px solid rgba(52, 211, 153, 0.2);
+  border-radius: 4px;
+  padding: 0.1em 0.4em;
+}
+
+// ── Bloques de código ──────────────────────────────────────
+.reveal pre {
+  background: #0f172a !important;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 10px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  margin: 0.6em 0;
+  width: 100%;
+
+  code {
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.72em !important;
+    line-height: 1.65;
+    padding: 1em 1.2em !important;
+    color: #e2e8f0;
+  }
+
+  &::before {
+    content: '';
+    display: block;
+    height: 28px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px 10px 0 0;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.15);
+    background-image: radial-gradient(circle, #ef4444 5px, transparent 5px),
+                      radial-gradient(circle, #f59e0b 5px, transparent 5px),
+                      radial-gradient(circle, #22c55e 5px, transparent 5px);
+    background-position: 14px 50%, 30px 50%, 46px 50%;
+    background-repeat: no-repeat;
+    background-size: 10px 10px;
+  }
+}
+
+// ── Tablas ─────────────────────────────────────────────────
+.reveal table {
+  font-size: 0.72em;
+  border-collapse: collapse;
+  width: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+
+  th {
+    background: rgba(99, 102, 241, 0.2);
+    color: #a5b4fc;
+    font-weight: 600;
+    padding: 0.6em 0.8em;
+    text-transform: uppercase;
+    font-size: 0.85em;
+    letter-spacing: 0.05em;
+    border: none;
+  }
+
+  td {
+    padding: 0.5em 0.8em;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+    color: #cbd5e1;
+    border-right: none;
+    border-left: none;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tr:hover td {
+    background: rgba(99, 102, 241, 0.05);
+  }
+}
+
+// ── Columnas ───────────────────────────────────────────────
+.reveal .columns {
+  gap: 2em;
+  align-items: start;
+}
+
+// ── Fragmentos ─────────────────────────────────────────────
+.reveal .fragment {
+  transition: all 0.3s ease;
+}
+
+// ── Footer ─────────────────────────────────────────────────
+.reveal .footer {
+  font-size: 0.45em !important;
+  color: #334155 !important;
+  letter-spacing: 0.03em;
+}
+
+// ── Número de slide ────────────────────────────────────────
+.reveal .slide-number {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 6px;
+  color: #475569;
+  font-size: 0.55em;
+  padding: 4px 10px;
+}
+
+// ── Progress bar ───────────────────────────────────────────
+.reveal .progress {
+  height: 2px;
+  background: rgba(99, 102, 241, 0.15);
+
+  span {
+    background: linear-gradient(90deg, #3b82f6, #a78bfa);
+  }
+}
+
+// ── Separador de sección (---) ─────────────────────────────
+.reveal .slide-background.stack {
+  background: transparent;
+}
+
+// ── Callouts ───────────────────────────────────────────────
+.reveal .callout {
+  border-radius: 10px;
+  font-size: 0.78em;
+  border-left-width: 3px;
+}
+
+.reveal .callout-note {
+  background: rgba(59, 130, 246, 0.08);
+  border-left-color: #3b82f6;
+}
+
+.reveal .callout-warning {
+  background: rgba(245, 158, 11, 0.08);
+  border-left-color: #f59e0b;
+}
+
+// ── Mermaid ────────────────────────────────────────────────
+.reveal .mermaid {
+  background: transparent !important;
+
+  svg {
+    max-height: 420px;
+  }
+}
+
+// ── Slides de sección (title-only, # encabezados) ─────────
+.reveal .slide-background {
+  background: transparent !important;
+}
+
+// Slide con solo H1 (sección)
+.reveal section.center {
+  h1 {
+    font-size: 2.4em;
+    font-weight: 800;
+    background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.03em;
+  }
+}

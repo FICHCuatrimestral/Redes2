@@ -1,0 +1,501 @@
+## Handshake completo — ¿y ahora? {.center}
+
+El handshake estableció el canal cifrado. Recién ahora el servidor le pregunta al cliente:
+
+> *"¿Quién sos?"*
+
+La autenticación ocurre **dentro** del canal cifrado —
+nadie en la red puede ver cómo te identificás.
+
+::: notes
+El handshake establece el canal cifrado; la autenticación opera dentro de él. Los tres casos que siguen comparten ese canal — lo que cambia es cómo el usuario demuestra su identidad.
+:::
+
+## Evaluando 3 Formas de Conectarse por SSH
+
+Analizaremos cada método desde dos perspectivas:
+
+- 🖥️ **Cliente** (PowerShell / terminal local)
+- 🖧 **Servidor** (`/var/log/auth.log`)
+
+::: notes
+Seguimos los logs reales del servidor para ver qué pasa internamente. El orden sigue el flujo natural: primero generamos las llaves, luego las usamos en los dos métodos criptográficos, y finalizamos con contraseña para contrastar y mostrar por qué es el método menos robusto.
+:::
+
+---
+
+## Generación de Claves SSH {.center}
+
+---
+
+### ¿Por qué Ed25519?
+
+El algoritmo que usa `ssh-keygen` para generar nuestras llaves.
+
+::: {.incremental}
+- **Seguro y moderno** — estándar recomendado hoy para SSH. Una llave Ed25519 completa tiene ~68 caracteres; una RSA equivalente supera los 500.
+- **Muy rápido** — firma y verificación en microsegundos.
+- **Verificable** — el servidor puede comprobar una firma sin conocer tu llave privada. Es exactamente lo que ocurre en los Casos 1 y 2.
+:::
+
+::: notes
+Ed25519 es el nombre del algoritmo. EdDSA es el esquema general de firma sobre curvas elípticas; Ed25519 es la implementación concreta sobre la curva Curve25519. Para el público alcanza con decir que es el estándar moderno recomendado para SSH. Si alguien pregunta por RSA: Ed25519 logra la misma seguridad con llaves mucho más cortas (256 bits vs 3072 bits) y menor costo computacional. El tamaño visible de la llave pública refleja esa diferencia — ~68 caracteres vs 500+.
+
+Para el tercer punto: "La llave pública y la privada están relacionadas matemáticamente — lo que firma una, solo la otra puede verificarlo. El servidor nunca necesita ver tu llave privada."
+:::
+
+---
+
+## {.smaller}
+
+### `ssh-keygen` — ¿Qué es y qué hace?
+
+`ssh-keygen`[^sshkeygen] genera y administra llaves SSH.
+
+::: {.incremental}
+- **Sin argumentos** — genera una llave Ed25519 por defecto.
+- **`-t ed25519`** — especifica el tipo de llave explícitamente.
+- **Formato OpenSSH** — guarda la llave privada con un comentario
+  (`usuario@host`) para identificar su origen.
+- **Passphrase** — cifra la llave privada en disco. Si se pierde,
+  hay que generar un nuevo par y registrarlo en cada servidor.
+:::
+
+::: notes
+ssh-keygen soporta solo SSH-2 (la versión moderna y segura; SSH-1 tiene vulnerabilidades conocidas). La passphrase es opcional pero recomendada — si alguien roba el archivo de llave privada, sin la passphrase no puede usarla. También puede generar parámetros para Diffie-Hellman y listas de revocación (KRL), pero eso es uso avanzado de administración.
+:::
+
+
+## {.smaller}
+
+### Generando el par de llaves
+
+Con `ssh-keygen -t ed25519` generamos el par localmente.
+La llave privada **nunca sale de la máquina**.
+
+```bash
+PS> ssh-keygen -t ed25519
+
+# El sistema propone una ruta por defecto — Enter para aceptar:
+Enter file in which to save the key (C:\Users\berto/.ssh/id_ed25519):
+
+# Passphrase opcional para cifrar la llave privada en disco:
+Enter passphrase (empty for no passphrase):
+
+# Dos archivos generados:
+Your identification has been saved in C:\Users\berto/.ssh/id_ed25519
+Your public key has been saved in C:\Users\berto/.ssh/id_ed25519.pub
+
+# Fingerprint — huella digital única del par de llaves:
+The key fingerprint is:
+SHA256:ztzVw1mjwIuJpexHxr75Z0J5GXjhgltVFD1wit4tE6I berto@DESKTOP-60294G4
+```
+
+> Normalmente cada usuario ejecuta esto **una sola vez** para crear
+> su llave en `~/.ssh/id_ed25519`. El administrador del sistema
+> también puede usarlo para generar las **claves de host** del servidor.
+> *Fuente: [man.openbsd.org/ssh-keygen.1](https://man.openbsd.org/ssh-keygen.1)*
+
+::: notes
+El comando genera dos archivos y un fingerprint — explicar cada uno señalando la salida:
+
+- **`id_ed25519`** — la llave privada. Nunca sale de la máquina. Si alguien la obtiene, puede autenticarse en cualquier servidor donde esté registrada la llave pública correspondiente.
+- **`id_ed25519.pub`** — la llave pública. Se copia al servidor en `~/.ssh/authorized_keys`. Puede compartirse libremente — sin la privada no sirve para autenticarse.
+- **`SHA256:ztzVw1m...`** — el fingerprint del par. Es el "ID corto" de la llave: en lugar de registrar o comparar la llave pública completa, usás este hash compacto y único. Aparece en los logs del servidor cada vez que alguien se conecta con esa llave, lo que permite auditar qué llave autenticó cada sesión. Lo vamos a ver en los casos siguientes.
+- **Randomart** — representación visual del fingerprint para reconocer una llave de un vistazo, sin comparar strings largos.
+:::
+
+---
+
+### Registrando la llave en el servidor
+
+Con el par generado, copiamos la llave pública al servidor para
+que `sshd` pueda reconocernos en conexiones futuras.
+
+```bash
+# Opción A — comando automático (Linux/macOS):
+$ ssh-copy-id umbral@103.199.187.160
+
+# Opción B — manual desde PowerShell (Windows):
+PS> Get-Content $env:USERPROFILE\.ssh\id_ed25519.pub | ssh umbral@103.199.187.160 \
+    "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+
+# Verificación en el servidor:
+$ cat ~/.ssh/authorized_keys
+```
+
+> Ambos métodos agregan la llave pública a `~/.ssh/authorized_keys`
+> en el servidor — el archivo que `sshd` consulta para decidir
+> si acepta una conexión por llave pública.
+
+::: notes
+`~/.ssh/authorized_keys` vive en el servidor, en el directorio del usuario al que te conectás. Contiene una llave pública por línea. Cuando alguien intenta conectarse, `sshd` lee ese archivo y verifica si la llave que ofrece el cliente está ahí.
+
+Con 100 usuarios tenés 100 pares de llaves — cada usuario tiene su privada en su máquina y su pública registrada en `authorized_keys` de cada servidor al que accede. Si tenés 10 servidores, son 1000 entradas que mantener. Si un empleado se va, tenés que actualizar los 10 servidores manualmente. Eso es exactamente el problema que resuelve el Caso 2.
+:::
+
+---
+
+### Observando la negociación con `-v`
+
+En los tres casos usamos `ssh -v` para ver el flujo de autenticación entre cliente y servidor.
+
+```bash
+PS> ssh -v umbral@103.199.187.160
+```
+
+> **`-v` — Modo verbose**
+> Hace que `ssh` imprima mensajes de depuración sobre su progreso.
+> Se puede repetir hasta 3 veces (`-vvv`) para mayor detalle.
+> *Fuente: [man.openbsd.org/ssh.1](https://man.openbsd.org/ssh.1)*
+
+---
+
+## Caso 1: Autenticación por PublicKey {.center}
+
+---
+
+### Perspectiva del Cliente — Flujo de negociación
+
+Con la llave registrada en el servidor, la autenticación ocurre sin contraseña — el servidor firma un desafío criptográfico con su llave privada local.
+
+```bash
+PS> ssh -v umbral@103.199.187.160
+```
+
+```{.bash code-line-numbers="|1-2|4-5|7-11|13-14"}
+# 1. El servidor anuncia los métodos disponibles:
+debug1: Authentications that can continue: publickey,password
+
+# 2. El cliente detecta la llave local y la ofrece:
+debug1: Will attempt key: C:\\Users\\berto/.ssh/id_ed25519 ED25519 SHA256:ztzVw1mjwIuJpexHxr75Z0J5GXjhgltVFD1wit4tE6I
+
+# 3. El servidor verifica la firma y acepta:
+debug1: Offering public key: C:\\Users\\berto/.ssh/id_ed25519 ED25519 SHA256:ztzVw1mjwIuJpexHxr75Z0J5GXjhgltVFD1wit4tE6I
+debug3: send packet: type 50
+debug1: Server accepts key: C:\\Users\\berto/.ssh/id_ed25519 ED25519 SHA256:ztzVw1mjwIuJpexHxr75Z0J5GXjhgltVFD1wit4tE6I
+debug3: receive packet: type 60
+
+# 4. Autenticación exitosa — sin contraseña:
+Authenticated to 103.199.187.160 ([103.199.187.160]:22) using "publickey".
+```
+
+::: notes
+El `SHA256:ztzVw1m...` que aparece en los pasos 2 y 3 es el fingerprint — el identificador corto de la llave. El cliente lo muestra para que sea legible en logs y en pantalla, pero internamente lo que viaja y se compara es la llave pública completa.
+
+El flujo real es: el cliente ofrece su llave pública → el servidor la busca en `authorized_keys` comparando llave completa, no fingerprint → si hay match, emite un desafío (datos aleatorios) → el cliente lo firma con su llave privada → el servidor verifica la firma con la llave pública → acceso concedido. La llave privada nunca sale de la máquina del cliente.
+:::
+
+---
+
+### Perspectiva del Servidor (`/var/log/auth.log`)
+
+El demonio `sshd` busca la llave en `authorized_keys`, verifica
+la firma criptográfica y delega la apertura de sesión a
+**PAM**— sin que ninguna contraseña viaje por la red.
+
+```bash {code-line-numbers="2-3|5-6|8-9|11-12"}
+# 1. sshd busca la llave en authorized_keys:
+sshd[1856155]: debug1: trying public key file /home/umbral/.ssh/authorized_keys
+sshd[1856155]: debug1: /home/umbral/.ssh/authorized_keys:3: matching key found: ED25519 SHA256:ztzVw1mjwIuJpexHxr75Z0J5GXjhgltVFD1wit4tE6I
+
+# 2. La firma es válida — acceso concedido:
+sshd[1856155]: Accepted publickey for umbral from 181.4.156.91 port 55230 ssh2: ED25519 SHA256:ztzVw1mjwIuJpexHxr75Z0J5GXjhgltVFD1wit4tE6I
+
+# 3. PAM abre la sesión (sin verificar contraseña):
+sshd[1856155]: pam_unix(sshd:session): session opened for user umbral(uid=1001) by umbral(uid=0)
+
+# 4. El sistema registra la nueva sesión:
+systemd-logind[695]: New session 1968 of user umbral.
+```
+
+::: notes
+sshd recorre `authorized_keys` línea por línea comparando la llave pública completa — no el fingerprint. El fingerprint en el log es solo el identificador legible del resultado.
+
+Cuando la firma es válida, sshd hace un `fork` — crea un proceso hijo con un PID único (acá `1856155`) aislado del demonio principal. Ese proceso hijo es el que se convierte en la sesión del usuario. Luego llama a PAM (`pam_unix session`) no para verificar contraseña sino para registrar la apertura de sesión: contabilidad, variables de entorno, permisos. La consola la levanta sshd; PAM la registra en el sistema.
+
+El PID único por sesión permite auditar y matar sesiones individuales sin afectar al demonio ni a otras conexiones activas.
+:::
+
+---
+
+### Caso 1: Análisis y Trazabilidad
+
+::: {.incremental}
+- **El desafío** — el servidor manda un número aleatorio cifrado con tu llave pública. Solo quien tenga la privada puede descifrarlo y responder. Si la respuesta es correcta, acceso concedido. Ningún secreto viaja por la red.
+- **Huella digital auditable** — el fingerprint `SHA256:ztzVw1m...`
+  queda registrado en el log del servidor, permitiendo identificar
+  exactamente qué llave autenticó cada sesión.
+- **Riesgo de exposición** — si la llave privada se filtra
+  (por ejemplo, subida accidentalmente a un repositorio),
+  cualquier persona puede autenticarse como el dueño legítimo.
+  Lo veremos en la demo práctica.
+:::
+
+::: notes
+No hay secreto compartido — el servidor tiene la llave pública y nunca necesita ver la privada. La auditoría es por fingerprint único, no por usuario + contraseña. El problema de escala (100 usuarios, 10 servidores) es el disparador del Caso 2.
+:::
+
+---
+
+## ¿Qué pasa si tenés 100 usuarios? {.center}
+
+::: notes
+Dejar que la pregunta quede en el aire unos segundos. El problema es que con publickey pura, cada usuario necesita su llave registrada en cada servidor. Con 100 usuarios y 10 servidores son 1000 entradas que mantener — y si alguien se va, hay que actualizar todo a mano. El Caso 2 resuelve exactamente esto.
+:::
+
+---
+
+## Caso 2: Autenticación por Certificado SSH {.center}
+
+---
+
+### Autoridad Certificante (CA)
+
+Una entidad que **firma certificados** para avalar identidades.
+
+- 🏢 **La CA** genera un par de llaves propio (`ssh_ca` + `ssh_ca.pub`)
+- 🎫 **Firma** la llave pública del usuario → produce un certificado
+- 🖥️ **El servidor** solo necesita conocer `ssh_ca.pub` para validar cualquier certificado emitido por esa CA
+
+::: notes
+Analogía: es como una entrada con QR. Vos emitís las entradas, el servidor es el lector. El lector no necesita conocer a cada persona — solo sabe verificar entradas tuyas. Si la entrada venció o no la emitiste vos, la rechaza.
+
+La CA firma la llave **pública** del usuario — la privada nunca sale de la máquina del usuario. El servidor no guarda copia de cada certificado — solo usa `ssh_ca.pub` para verificar la firma de cualquiera que llegue.
+
+Diferencia con Caso 1: en Caso 1 dejás tu llave pública en el servidor (`authorized_keys`), el servidor te conoce individualmente. En Caso 2 tu llave pública nunca llega al servidor — el servidor solo conoce a la CA. Con el certificado podés entrar a cualquier servidor que confíe en ella.
+:::
+
+---
+
+### Caso 2: Configurando la CA
+
+```bash
+# 1. Generar el par de llaves de la CA en el servidor:
+$ ssh-keygen -t ed25519 -f ssh_ca -C "ca@umbraldesarrollos" -N ""
+
+# 2. Registrar la CA en sshd — el servidor ahora confía en ella:
+$ echo "TrustedUserCAKeys /etc/ssh/ca.pub" | sudo tee -a /etc/ssh/sshd_config
+
+# 3. Copiar la CA pública al directorio de sshd:
+$ cat ~/ssh-ca/ssh_ca.pub | sudo tee -a /etc/ssh/ca.pub
+
+# 4. Reiniciar sshd para aplicar los cambios:
+$ sudo systemctl restart ssh
+```
+
+> **`-f ssh_ca`** — nombre del archivo de salida (`ssh_ca` y `ssh_ca.pub`).
+> **`-C "ca@umbraldesarrollos"`** — identifica *quién es la CA* en los logs. Texto libre.
+> **`-N ""`** — sin passphrase para la llave privada de la CA.
+
+::: notes
+Sobre el comando del paso 1 — `ssh-keygen -t ed25519 -f ssh_ca -C "ca@umbraldesarrollos" -N ""`:
+
+- **`-t ed25519`** — el algoritmo, igual que cuando generamos las llaves de usuario.
+- **`-f ssh_ca`** — nombre del archivo de salida. En lugar del default `id_ed25519`, genera `ssh_ca` (privada) y `ssh_ca.pub` (pública).
+- **`-C "ca@umbraldesarrollos"`** — comentario/etiqueta de texto libre. La autoridad es el par de llaves en sí, no este texto. Podés poner cualquier cosa: `ca@miempresa`, `admin@servidor`, lo que sea. Queda en texto plano al final de `ssh_ca.pub`. En los logs del servidor NO aparece este texto — aparece el fingerprint de la CA (`SHA256:RYDg7Bq...`). Se puede cambiar después con `ssh-keygen -c`.
+- **`-N ""`** — passphrase vacía. La llave privada de la CA no tiene contraseña. En producción se recomienda ponerle una.
+:::
+
+---
+
+### Caso 2: Firmando el certificado de usuario
+
+El cliente genera su par de llaves, nos manda la pública, la firmamos y se la devolvemos como certificado.
+
+```bash
+# 1. El cliente manda su llave pública al servidor:
+PS> scp $env:USERPROFILE\.ssh\id_ed25519.pub umbral@103.199.187.160:~
+
+# 2. El servidor firma la llave pública con la CA (llave privada firma):
+$ ssh-keygen -s ssh_ca -I "berto@demo" -n umbral -V +1w ~/id_ed25519.pub
+
+# 3. Certificado generado — válido 1 semana:
+Signed user key id_ed25519-cert.pub: id "berto@demo" serial 0 for umbral valid from 2026-06-06T22:36:00 to 2026-06-13T22:37:06
+
+# 4. El servidor devuelve el certificado al cliente:
+PS> scp umbral@103.199.187.160:~/id_ed25519-cert.pub $env:USERPROFILE\.ssh\
+```
+
+> **`-I "berto@demo"`** — el nombre en la entrada: identifica al titular del certificado. Aparece en los logs cuando se conecta.
+> **`-n umbral`** — usuario del servidor al que este certificado da acceso.
+> **`-V +1w`** — la fecha de vencimiento de la entrada. Podría ser `+1d`, `+2h`, etc.
+
+::: notes
+El cliente conserva su llave privada — nunca la manda. Solo manda la pública para que la firmemos. La CA firma con `ssh_ca` (privada); el servidor valida con `ssh_ca.pub` (pública).
+
+El flag `-s ssh_ca` indica qué llave privada firma — en este caso la de la CA.
+:::
+
+---
+
+### Perspectiva del Cliente — Flujo de negociación
+
+SSH detecta automáticamente el certificado y lo ofrece al servidor.
+
+```bash
+PS> ssh -v umbral@103.199.187.160
+```
+
+```bash
+# 1. El servidor anuncia los métodos disponibles:
+debug1: Authentications that can continue: publickey,password
+
+# 2. El cliente ofrece primero la llave pública — el servidor la rechaza:
+debug1: Offering public key: C:\\Users\\berto/.ssh/id_ed25519 ED25519 SHA256:ztzVw1m...
+debug1: Authentications that can continue: publickey,password
+
+# 3. El cliente ofrece el certificado — el servidor lo acepta:
+debug1: Offering public key: C:\\Users\\berto/.ssh/id_ed25519 ED25519-CERT SHA256:ztzVw1m...
+debug1: Server accepts key: C:\\Users\\berto/.ssh/id_ed25519 ED25519-CERT SHA256:ztzVw1m...
+
+# 4. Autenticación exitosa por certificado:
+Authenticated to 103.199.187.160 ([103.199.187.160]:22) using "publickey".
+```
+
+::: notes
+El cliente primero intenta con la llave pública sola (ED25519) — el servidor la rechaza porque no está en `authorized_keys`. Este rechazo es esperado y correcto.
+
+Luego ofrece el certificado (ED25519-CERT) — el mismo fingerprint `SHA256:ztzVw1m...` porque es la misma llave, pero ahora viene acompañada del certificado firmado por la CA. El servidor lo acepta.
+
+Noten que el resultado final dice `using "publickey"` — SSH trata los certificados como una variante de autenticación por llave pública.
+:::
+
+---
+
+### Perspectiva del Servidor (`/var/log/auth.log`)
+
+El servidor verifica la firma de la CA, valida el certificado y
+abre la sesión — sin consultar `authorized_keys`.
+
+```bash
+# 1. La llave pública sola es rechazada — no está en authorized_keys:
+sshd[1947778]: debug1: userauth_pubkey: publickey test pkalg ssh-ed25519 pkblob ED25519 SHA256:ztzVw1m... [preauth]
+sshd[1947778]: Failed publickey for umbral from 181.4.156.91 port 55917 ssh2: ED25519 SHA256:ztzVw1m...
+
+# 2. El certificado es verificado contra la CA registrada:
+sshd[1947778]: debug1: userauth_pubkey: publickey test pkalg ssh-ed25519-cert-v01@openssh.com pkblob ED25519-CERT SHA256:ztzVw1m... CA ED25519 SHA256:RYDg7BqTaGkZjlBhstyS1gYI51sADkXrxkGQUQmFRNk [preauth]
+
+# 3. Certificado válido — acceso concedido:
+sshd[1947778]: Accepted certificate ID "berto@demo" (serial 0) signed by ED25519 CA SHA256:RYDg7BqTaGkZjlBhstyS1gYI51sADkXrxkGQUQmFRNk via /etc/ssh/ca.pub
+sshd[1947778]: Accepted publickey for umbral from 181.4.156.91 port 55917 ssh2: ED25519-CERT SHA256:ztzVw1m... ID berto@demo (serial 0) CA ED25519 SHA256:RYDg7BqTaGkZjlBhstyS1gYI51sADkXrxkGQUQmFRNk
+
+# 4. PAM abre la sesión:
+sshd[1947778]: pam_unix(sshd:session): session opened for user umbral(uid=1001) by umbral(uid=0)
+systemd-logind[695]: New session 1984 of user umbral.
+```
+
+::: notes
+Paso 1 — la llave pública sola es rechazada: no está en `authorized_keys`. El servidor ni la busca — en este modo no hay `authorized_keys`.
+
+Paso 2 — el servidor verifica el certificado contra la CA: usa `ssh_ca.pub` para validar la firma. Si la firma es válida y el certificado no expiró, sigue.
+
+Paso 3 — en el log aparece `"berto@demo"` (el `-I` que pusimos al firmar) y el fingerprint de la CA (`SHA256:RYDg7Bq...`). El comentario `-C "ca@umbraldesarrollos"` NO aparece acá — solo el fingerprint. Con estos dos datos podés auditar quién se conectó y quién lo autorizó.
+
+Paso 4 — igual que en el Caso 1: sshd hace el fork, PAM registra la sesión.
+:::
+
+---
+
+### Caso 2: Análisis y Trazabilidad
+
+::: {.incremental}
+- **Respuesta al problema de los 100 usuarios** — un solo archivo en cada servidor (`ca.pub`) reemplaza a `authorized_keys` con 100 entradas. Agregás o removés usuarios sin tocar ningún servidor.
+- **Acceso con fecha de vencimiento** — cuando el certificado expira, el acceso se corta solo. Sin revocar nada, sin actualizar nada.
+- **Trazabilidad completa** — en los logs sabés quién entró (`berto@demo`) y quién lo autorizó (fingerprint de la CA). Dos niveles de auditoría.
+- **El riesgo** — si se filtra la llave privada de la CA, el atacante puede emitir certificados para cualquier usuario. Es el activo más crítico del sistema.
+:::
+
+::: notes
+En los logs aparecen dos identidades: `berto@demo` es el usuario que se conecta, y `SHA256:RYDg7Bq...` es el fingerprint de la CA — o sea, umbral es quien generó y firmó el certificado. El log te dice quién entró y quién lo autorizó a entrar.
+
+Con authorized_keys, si un empleado se va necesitás actualizar cada servidor manualmente. Con CA, simplemente no renovás su certificado — cuando vence, el acceso se corta automáticamente en todos los servidores sin tocar ninguno. En flotas de 100+ servidores, eso es la diferencia entre un minuto y horas de trabajo.
+
+El último bullet conecta con la demo: si alguien pregunta qué pasa si se filtra la CA, es el peor escenario posible — hay que regenerarla y actualizar `ca.pub` en todos los servidores.
+:::
+
+---
+
+## ¿Y si no tenés nada de lo anterior? {.center}
+
+---
+
+## Caso 3: Autenticación por Contraseña {.center}
+
+::: notes
+Dejar que la pregunta quede en el aire. Sin par de llaves, sin CA, sin certificado — solo un usuario y una contraseña. Es el método más común y el menos seguro. El Caso 3 muestra por qué los casos anteriores existen.
+:::
+
+---
+
+### Perspectiva del Cliente — Flujo de negociación
+
+```bash
+# 1. El servidor anuncia los métodos de autenticación disponibles:
+debug1: Authentications that can continue: publickey,password
+
+# 2. El cliente intenta primero con llaves públicas:
+debug1: Next authentication method: publickey
+debug1: Trying private key: C:\\Users\\berto/.ssh/id_rsa
+debug1: Trying private key: C:\\Users\\berto/.ssh/id_ed25519
+# ... (ninguna está autorizada en el servidor)
+
+# 3. El cliente cae al método por contraseña:
+debug1: Next authentication method: password
+umbral@103.199.187.160's password:
+Authenticated to 103.199.187.160 ([103.199.187.160]:22) using "password".
+```
+
+::: notes
+SSH intenta con llaves públicas primero aunque no haya ninguna configurada — es el comportamiento por defecto, prioriza siempre el método más seguro.
+
+Cuando ninguna llave funciona, cae a contraseña. Acá aparece la diferencia clave con los casos anteriores: la contraseña es un secreto que *existe* y que el cliente le manda al servidor. Viaja cifrada dentro del canal SSH, pero existe — y eso la hace vulnerable a fuerza bruta si el servidor está expuesto en internet.
+:::
+
+---
+
+### Perspectiva del Servidor (`/var/log/auth.log`)
+
+El demonio `sshd` delega la validación al módulo **PAM**
+_(Pluggable Authentication Modules)_[^pam] y genera la sesión.
+
+```bash
+# 1. El demonio SSH recibe la petición de autenticación:
+sshd[1387699]: debug1: userauth-request for user umbral service ssh-connection method password
+
+# 2. PAM verifica la contraseña y aprueba el acceso:
+sshd[1387699]: PAM: password authentication accepted for umbral
+sshd[1387699]: Accepted password for umbral from 181.4.156.91 port 62968 ssh2
+
+# 3. Se asigna un PID único y se abre la sesión interactiva:
+sshd[1387699]: pam_unix(sshd:session): session opened for user umbral(uid=1001) by umbral(uid=0)
+systemd-logind[695]: New session 1903 of user umbral.
+```
+
+::: notes
+A diferencia del Caso 1, acá PAM hace dos cosas: verifica la contraseña consultando `/etc/shadow` y abre la sesión. En los casos anteriores solo abría la sesión — la autenticación ya la había resuelto la criptografía.
+
+El log no muestra fingerprint ni certificado — solo usuario, IP y método `password`. Menos información para auditar quién se conectó y desde dónde.
+:::
+
+---
+
+### Caso 3: Análisis y Trazabilidad
+
+::: {.incremental}
+- **Comportamiento esperado** — SSH prioriza seguridad intentando con `publickey` antes de degradar a `password`.
+- **Trazabilidad y aislamiento** — cada conexión genera un proceso hijo (PID `1387699`) aislado del demonio principal, auditable de forma individual.
+- **Vulnerabilidad crítica** — la contraseña es un secreto que existe y viaja. Deja el puerto 22 expuesto a ataques de fuerza bruta.
+:::
+
+::: notes
+Después de ver los dos métodos criptográficos, este caso muestra por qué la contraseña es el método menos robusto. En producción, lo ideal es deshabilitar PasswordAuthentication en sshd_config completamente y forzar publickey o certificados. La gran diferencia con los casos anteriores: aquí hay un secreto que viaja — cifrado dentro del canal SSH, pero que existe y puede ser atacado por fuerza bruta si el servidor es accesible desde internet.
+:::
+
+<!-- ============================================================ -->
+<!-- FOOTNOTES — siempre al final del archivo                     -->
+<!-- ============================================================ -->
+
+[^pam]: PAM (Pluggable Authentication Modules)** es una capa de abstracción del sistema operativo que permite configurar métodos de autenticación de forma modular, sin modificar las aplicaciones. En este caso, `sshd` le delega la verificación de contraseña a PAM, que internamente consulta `/etc/shadow`. Más info: [wiki.archlinux.org/title/PAM_(Español)](https://wiki.archlinux.org/title/PAM_\(Espa%C3%B1ol\))
+
+[^sshkeygen]: Documentación completa: [man.openbsd.org/ssh-keygen.1](https://man.openbsd.org/ssh-keygen.1)

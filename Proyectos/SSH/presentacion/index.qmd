@@ -1,0 +1,57 @@
+---
+title: "Secure Shell Protocol"
+subtitle: "Capa de aplicación · Redes II"
+date: 06/08/2026
+date-format: "DD [de] MMMM, YYYY"
+format:
+    revealjs:
+        theme: [dark]
+        footer: "Facultad de Ingeniería y Ciencias Hídricas · Universidad Nacional del Litoral"
+        menu: false
+        slide-number: c
+        history: false
+        width: 1280
+        height: 720
+        transition: slide
+        transition-speed: fast
+        auto-animate-easing: ease-in-out
+        auto-animate-duration: 0.6
+        highlight-style: github-dark
+        mermaid:
+            theme: dark
+---
+
+## Tópicos a trabajar
+
+### 1. ¿Qué es SSH?
+### 2. Handshake (Paso a paso)
+### 3. Métodos de Autenticación
+### 4. Demos y Casos de Uso (Túneles y X11)
+### 5. Resumen y Conclusiones
+
+
+{{< include intro-ssh.qmd >}}
+
+
+{{< include handshake.qmd >}}
+
+
+
+# Autenticación {.center}
+
+{{< include auth.qmd >}}
+
+---
+
+# Demo(s) {.center}
+
+{{< include demos.qmd >}}
+
+
+## {.center}
+
+::: {.fragment}
+###  ¿Preguntas? 
+:::
+
+## Muchas gracias {.center}

@@ -1,0 +1,149 @@
+# ¿Qué es [S]{.underline}ecure [Sh]{.underline}ell Protocol? {.center}
+
+Protocolo de red criptográfico que permite operar servicios de red de forma segura en redes no seguras
+
+::: {.notes}
+
+<!-- Fuente: https://en.wikipedia.org/wiki/Secure_Shell -->
+
+- Protocolo de terminal segura (Secure Shell Protocol, SSH)
+- Protocolo de red criptográfico que permite operar servicios de red de forma segura en redes no seguras
+
+:::
+
+
+## SSH en el tiempo {.smaller}
+
+> **Previo a 1995**: user & password / sin cifrado / *texto plano* / 
+
+  - `Telnet` /  `rlogin`, `rsh`, `rcp` (*Berkley*)
+
+> **1995**: *Tatu Ylönen* Diseña e implementa **`ssh`** (v1) y **`slogin`**
+
+
+::: {.list-table header-rows=0 aligns="c,c"}
+
+- - **Confidencialidad**
+  - Los datos viajan cifrados
+
+- - **Autenticación**
+  - Se verifica la identidad de ambos extremos
+
+- - **Integridad**
+  - No se pueden modificar entre extremos sin detección
+:::
+
+
+::: {.notes}
+<!-- Fuente: https://en.wikipedia.org/wiki/Secure_Shell -->
+
+- Antes de SSH, la administración remota usaba **Telnet** y **rsh**
+- El problema: todo viajaba en **texto plano** por la red -> visible para cualquiera con Wireshark
+- En 1995, el científico finlandés **Tatu Ylönen** diseña SSH como respuesta a un ataque "password-sniffing" en su red universitaria (similar a lo que podría pasar con el *e-fich*)
+
+:::
+
+
+## SSH en el tiempo {.smaller}
+
+> **1999**: *OpenBSD Secure Shell* más conocido como **`OpenSSH`**
+
+
+::: {.columns}
+
+::: {.column width="60%"}
+
+- Implementación más utilizada en la actualidad
+
+- OpenSource: [github.com/openssh/openssh-portable](https://github.com/openssh/openssh-portable){target="_blank"}
+
+- Se compone de:
+  - `ssh` y `sshd`: Cliente y Servidor SSH
+  - `scp`: Copia encriptada de archivos
+  - `sftp`: Cliente de transferencia de archivos
+  - `ssh-keygen`: Generación y manejo de claves
+  - `ssh-agent`, `ssh-add`, `ssh-keyscan`
+
+:::
+
+::: {.column width="40%"}
+
+<br>
+
+[![](https://opengraph.githubassets.com/70d7044a966a541d9df6002fbeb62d005555cc7/openssh/openssh-portable/)](https://github.com/openssh/openssh-portable){target="_blank"}
+
+:::
+
+:::
+
+
+
+::: {.notes}
+- Incluida en *Linux*, *macOS* y *Windows*
+
+:::
+
+
+
+## SSH en el tiempo {.smaller}
+
+> **2006**: **`SSHv2`**
+>
+> - Mayor seguridad
+> - Nuevos métodos de intercambio de claves
+> - Mayor integridad de datos
+
+  - [**RFC 4250**](https://www.rfc-editor.org/info/rfc4250/){target="_blank"}: Numeración de los paquetes <!-- Protocol Assigned Numbers -->
+  - [**RFC 4251**](https://www.rfc-editor.org/info/rfc4251/){target="_blank"}: Arquitectura del protocolo <!-- Protocol Architecture -->
+  - [**RFC 4252**](https://www.rfc-editor.org/info/rfc4252/){target="_blank"}: Protocolo de Autenticación <!-- Authentication Protocol -->
+  - [**RFC 4253**](https://www.rfc-editor.org/info/rfc4253/){target="_blank"}: Protocolo de Transporte <!-- Transport Layer Protocol -->
+  - [**RFC 4254**](https://www.rfc-editor.org/info/rfc4254/){target="_blank"}: Protocolo de Conexión <!-- Connection Protocol -->
+
+::: {.aside}
+y muchos más: RFC
+[**4255**](https://www.rfc-editor.org/info/rfc4255/){target="_blank"},
+[**4256**](https://www.rfc-editor.org/info/rfc4256/){target="_blank"},
+[**4335**](https://www.rfc-editor.org/info/rfc4335/){target="_blank"},
+[**4344**](https://www.rfc-editor.org/info/rfc4344/){target="_blank"},
+[**4345**](https://www.rfc-editor.org/info/rfc4345/){target="_blank"},
+[**4419**](https://www.rfc-editor.org/info/rfc4419/){target="_blank"},
+[**4432**](https://www.rfc-editor.org/info/rfc4432/){target="_blank"},
+[**4462**](https://www.rfc-editor.org/info/rfc4462/){target="_blank"},
+[**4716**](https://www.rfc-editor.org/info/rfc4716/){target="_blank"},
+[**4819**](https://www.rfc-editor.org/info/rfc4819/){target="_blank"},
+y sigue.. 
+<!--
+[**5647**](https://www.rfc-editor.org/info/rfc5647/){target="_blank"},
+[**5656**](https://www.rfc-editor.org/info/rfc5656/){target="_blank"},
+[**6187**](https://www.rfc-editor.org/info/rfc6187/){target="_blank"},
+[**6239**](https://www.rfc-editor.org/info/rfc6239/){target="_blank"},
+[**6594**](https://www.rfc-editor.org/info/rfc6594/){target="_blank"},
+[**6668**](https://www.rfc-editor.org/info/rfc6668/){target="_blank"},
+
+[**7479**](https://www.rfc-editor.org/info/rfc7479/){target="_blank"},
+[**5592**](https://www.rfc-editor.org/info/rfc5592/){target="_blank"},
+[**6242**](https://www.rfc-editor.org/info/rfc6242/){target="_blank"},
+[**8332**](https://www.rfc-editor.org/info/rfc8332/){target="_blank"},
+[**8709**](https://www.rfc-editor.org/info/rfc8709/){target="_blank"},
+-->
+:::
+
+
+
+
+## SSH: Resumen de características  {.smaller}
+
+- #### Arquitectura Cliente-Servidor
+- #### Capa de Red: `IP`
+- #### Capa de Transporte: `TCP` (orientado a la conexión)
+    - Puerto asignado al servidor: `22`
+- #### 3 capas internas:
+    1. Capa de transporte
+    2. Capa de autenticación
+    3. Capa de conexión
+
+
+::: {.notes}
+- Utiliza el stack TCP/IP, lo que quiere decir que es orientado a la conexión
+- Tiene el puerto 22 reservado por la *IANA* (TCP, UDP y STCP)
+:::

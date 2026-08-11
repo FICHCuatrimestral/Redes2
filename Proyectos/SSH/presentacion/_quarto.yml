@@ -1,0 +1,15 @@
+project:
+  type: website
+  output-dir: ./public
+  preview:
+    port: 4200
+    browser: false
+  render:
+    - index.qmd
+
+lang: es
+
+format:
+  html:
+    mermaid:
+      theme: dark

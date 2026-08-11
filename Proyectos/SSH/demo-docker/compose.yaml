@@ -1,0 +1,27 @@
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    # ports:
+    #   - "2500:80"
+    restart: unless-stopped
+    networks:
+      - internal
+
+  ssh_gateway:
+    image: lscr.io/linuxserver/openssh-server:latest
+    container_name: ssh_gateway
+    restart: unless-stopped
+    ports:
+      - "22000:2222"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Argentina/Buenos_Aires
+      - USER_NAME=tunnel
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
